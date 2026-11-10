@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <WiFi101.h>
+#include <WiFiUdp.h>
 
 // put function declarations here:
 int myFunction(int, int);
