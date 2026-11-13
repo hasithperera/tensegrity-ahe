@@ -34,6 +34,15 @@ const unsigned int UDP_PORT = 52311;
 long enc_A_cnt = 0;
 long enc_B_cnt = 0;
 
+int m0_current,m1_current = 0;
+
+
+double Setpoint_a, Input_a, Output_a;
+
+//Specify the links and initial tuning parameters
+double Kp=1.01, Ki=1, Kd=1;
+PID mypid_a(&Input_a, &Output_a, &Setpoint_a, Kp, Ki, Kd, DIRECT);
+
 void isr_a();
 
 
@@ -129,9 +138,7 @@ void init_encorders(){
   attachInterrupt(enc_A1,isr_a,RISING);
 }
 
-double Setpoint, Input, Output;
-double Kp=2, Ki=5, Kd=1;
-PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+
 WiFiUDP udp;
 
 char packet[12];
@@ -228,6 +235,8 @@ void setup() {
   delay(500);
   digitalWrite(13,LOW);
 
+
+  mypid_a.SetMode(AUTOMATIC);
 }
 
 void extract_udp_cmd(){
@@ -261,6 +270,30 @@ void extract_udp_cmd(){
     motor_rev();
   }
     
+}
+
+void internal_PID_loop(int m0_len,int m1_len){
+
+  // external values are setpoints
+
+
+  // calculate counts for motors and direction
+  int mtr_a_dir = 0;
+
+  if(m0_len>m0_current){
+    // mtr fwd
+    mtr_a_dir = 1;
+  }else{
+    //mtr rev
+    mtr_a_dir = 0;
+  }
+
+  mypid_a.Compute();
+  set_motor(0,mtr_a_dir,int(Output_a));
+
+  mypid_a.Compute();
+
+
 }
 
 void loop() {
