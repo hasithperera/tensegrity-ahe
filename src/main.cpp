@@ -26,6 +26,7 @@
 
 char ssid[] = "ahe";
 char password[] = "Morgantown";
+char print[40];
 
 const unsigned int UDP_PORT = 52311;
 
@@ -34,16 +35,18 @@ const unsigned int UDP_PORT = 52311;
 long enc_A_cnt = 0;
 long enc_B_cnt = 0;
 
-int m0_current,m1_current = 0;
+int m0_current = 75;
+int m1_current = 75;
 
 
 double Setpoint_a, Input_a, Output_a;
 
 //Specify the links and initial tuning parameters
-double Kp=1.01, Ki=1, Kd=1;
+double Kp=100.0,Ki=0.0, Kd=0.0;
 PID mypid_a(&Input_a, &Output_a, &Setpoint_a, Kp, Ki, Kd, DIRECT);
 
 void isr_a();
+void internal_PID_loop(int m0_len,int m1_len);
 
 
 void init_motors(){
@@ -59,11 +62,23 @@ void init_motors(){
 
 void set_motor(int motor,int dir,int speed){
   // set speed,direction for motor 0,1
+   sprintf(print,"set_mtr:%d,%d,%d",motor,dir,speed);
+  Serial.println(print);
+  
   if (motor){
-    // m1 cmds
+    //m1 cmds
 
   }else{
     //m0 cmds
+    analogWrite(PWMA,speed);
+    if(dir){
+      digitalWrite(AIN1,HIGH);
+      digitalWrite(AIN2,LOW);
+      return;
+    }
+    digitalWrite(AIN1,LOW);
+    digitalWrite(AIN2,HIGH);
+
   }
   
 }
@@ -207,9 +222,9 @@ int udp_listen(){
 }
 
 void send_udp(){
-    udp.beginPacket("192.168.0.255", 5000);
-    strcpy(packet,"dataout");
-    udp.write((uint8_t*)packet, 7);
+    udp.beginPacket("192.168.1.255", 5000);
+    sprintf(packet,"%04d,%04d:",enc_A_cnt,enc_B_cnt);
+    udp.write((uint8_t*)packet, 10);
     udp.endPacket();
 }
 
@@ -218,6 +233,7 @@ void setup() {
   // int result = myFunction(2, 3);
   // attachInterrupt(1,isr,RISING);  // https://docs.arduino.cc/language-reference/en/functions/external-interrupts/attachInterrupt/
 
+  m0_current = 75;
 
   init_encorders();
   init_motors();
@@ -253,48 +269,68 @@ void extract_udp_cmd(){
     Serial.println(mtr_b_len);
   #endif
 
-  if (mtr_a_len==65){
-    stop_motor(0);
-    print_enc_a();
-    reset_enc_cnt();
-  }
+  // if (mtr_a_len==65){
+  //   stop_motor(0);
+  //   print_enc_a();
+  //   reset_enc_cnt();
+  // }
     
   
-  if(mtr_a_len > 65){
-    analogWrite(PWMA,255);
-    motor_fwd();
-  }
+  // if(mtr_a_len > 65){
+  //   analogWrite(PWMA,255);
+  //   motor_fwd();
+  // }
 
-  if(mtr_a_len < 65){
-    analogWrite(PWMA,255);
-    motor_rev();
-  }
+  // if(mtr_a_len < 65){
+  //   analogWrite(PWMA,255);
+  //   motor_rev();
+  // }
+
+  internal_PID_loop(mtr_a_len,mtr_b_len);
     
 }
+
+
 
 void internal_PID_loop(int m0_len,int m1_len){
 
   // external values are setpoints
+  
 
 
   // calculate counts for motors and direction
-  int mtr_a_dir = 0;
+  float mtr_a_pending_cnt = (m0_len - m0_current) * 23.33;
+  sprintf(print,"PID in:%d,%d\nm0c:%d\n m_pnd_cnt:%.2f\n",m0_len,m1_len,m0_current,mtr_a_pending_cnt);
+  Serial.println(print);
 
-  if(m0_len>m0_current){
-    // mtr fwd
-    mtr_a_dir = 1;
-  }else{
-    //mtr rev
-    mtr_a_dir = 0;
+  reset_enc_cnt();
+  // fwd if mtr_a_pending_cnt > 0
+  // rev if mtr_a_pending_cnt < 0
+
+  Setpoint_a = abs(mtr_a_pending_cnt);
+  Input_a = enc_A_cnt;
+
+  
+  while(abs(abs(mtr_a_pending_cnt) - enc_A_cnt)>10){
+      Input_a = enc_A_cnt;
+      mypid_a.Compute();
+
+      sprintf(print,"PID loop: cnt:%d pnd a:%.2f",enc_A_cnt,mtr_a_pending_cnt);
+      Serial.println(print);
+
+      
+      set_motor(0,mtr_a_pending_cnt>0,map(int(Output_a),int(0),int(300),int(50),int(255)));
+      delay(10);
   }
-
-  mypid_a.Compute();
-  set_motor(0,mtr_a_dir,int(Output_a));
-
-  mypid_a.Compute();
+  stop_motor(0);
+  m0_current = m0_len;
 
 
+  sprintf(print,"PID exit: enca %.2f",enc_A_cnt);
+  Serial.println(print);
 }
+
+long enc_a_old,enc_b_old=0;
 
 void loop() {
   // put your main code here, to run repeatedly:
@@ -306,13 +342,19 @@ void loop() {
   //   send_udp();
   //   delay(200);
   // }
+  //Serial.print('.');
+
+  // if (enc_a_old != enc_A_cnt){
+  //   send_udp();
+  //   enc_a_old = enc_A_cnt;
+  // }
 
 
-  // hardcoded motor limit
-  if(enc_A_cnt > 12500){
-    stop_motor(0);
-    reset_enc_cnt();
-  }
+  // // hardcoded motor limit
+  // if(enc_A_cnt > 7000){
+  //   stop_motor(0);
+  //   reset_enc_cnt();
+  // }
   
  int packetSize = udp.parsePacket();
   if (packetSize) {
@@ -324,9 +366,6 @@ void loop() {
     extract_udp_cmd();
   }
   digitalWrite(13,LOW);
-  
-  
-
 
 }
 

@@ -1,6 +1,6 @@
 import socket
 
-ARDUINO_IP = "192.168.0.255"  # broad cast id
+ARDUINO_IP = "192.168.1.255"  # broad cast id
 ARDUINO_PORT = 52311
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -12,6 +12,15 @@ while True:
     msg=bytes(data)
     message = input("Enter message (q to quit): ")
 
+
+    try:
+        msg_int = int(message)
+        print(f'int:{msg_int}')
+        data[0] = msg_int
+        msg=bytes(data)
+        
+    except:
+        pass
    
     if message.lower() == "q":
         break
