@@ -42,7 +42,7 @@ int m1_current = 75;
 double Setpoint_a, Input_a, Output_a;
 
 //Specify the links and initial tuning parameters
-double Kp=100.0,Ki=0.0, Kd=0.0;
+double Kp=.45,Ki=0, Kd=.02;
 PID mypid_a(&Input_a, &Output_a, &Setpoint_a, Kp, Ki, Kd, DIRECT);
 
 void isr_a();
@@ -311,18 +311,20 @@ void internal_PID_loop(int m0_len,int m1_len){
   Input_a = enc_A_cnt;
 
   
-  while(abs(abs(mtr_a_pending_cnt) - enc_A_cnt)>10){
-      Input_a = enc_A_cnt;
+  while(abs(abs(mtr_a_pending_cnt) - enc_A_cnt)>5){
+      Input_a = enc_A_cnt*1.0;
       mypid_a.Compute();
 
-      sprintf(print,"PID loop: cnt:%d pnd a:%.2f",enc_A_cnt,mtr_a_pending_cnt);
-      Serial.println(print);
+
+      Serial.println(Output_a);
 
       
-      set_motor(0,mtr_a_pending_cnt>0,map(int(Output_a),int(0),int(300),int(50),int(255)));
-      delay(10);
+      set_motor(0,mtr_a_pending_cnt>0,map(int(Output_a),int(0),int(255),int(15),int(255)));
+      delay(2);
   }
   stop_motor(0);
+
+  // tellling you its perfectly there, this accumilates error
   m0_current = m0_len;
 
 
