@@ -108,6 +108,13 @@ void test_speeds(int motor){
 }
 
 
+void print_enc_a(){
+  Serial.print("enc:");
+  Serial.print(enc_A_cnt);
+  Serial.print(',');
+  Serial.println(enc_B_cnt);
+}
+
 void reset_enc_cnt(){
   enc_A_cnt = 0;
   enc_B_cnt = 0;
@@ -236,6 +243,24 @@ void extract_udp_cmd(){
     Serial.print(',');
     Serial.println(mtr_b_len);
   #endif
+
+  if (mtr_a_len==65){
+    stop_motor(0);
+    print_enc_a();
+    reset_enc_cnt();
+  }
+    
+  
+  if(mtr_a_len > 65){
+    analogWrite(PWMA,255);
+    motor_fwd();
+  }
+
+  if(mtr_a_len < 65){
+    analogWrite(PWMA,255);
+    motor_rev();
+  }
+    
 }
 
 void loop() {
@@ -248,6 +273,13 @@ void loop() {
   //   send_udp();
   //   delay(200);
   // }
+
+
+  // hardcoded motor limit
+  if(enc_A_cnt > 12500){
+    stop_motor(0);
+    reset_enc_cnt();
+  }
   
  int packetSize = udp.parsePacket();
   if (packetSize) {
