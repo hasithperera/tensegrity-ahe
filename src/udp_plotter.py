@@ -13,15 +13,14 @@ print(f'Listening on port: {port}')
 print('--------------------------------------------')
 
 
+log_file = './data/PID_log.csv'
 
+with open(log_file,'w+') as fp:
 
-while(1):
-    message, address = serverSocket.recvfrom(10)
-    #contents = struct.unpack('1f', message)[0]
-    print(f'{time.time()},{message.decode()}')
-    # plt.scatter(i, contents)
+    while(1):
+        message, address = serverSocket.recvfrom(24)
+        #contents = struct.unpack('1f', message)[0]
+        print(f'{time.time()},{message.decode()}')
 
-#     plt.stem([i], [contents])
-#     plt.pause(0.2)
+        fp.write(f'{time.time()},{message.decode()}\n')
 
-# plt.show()

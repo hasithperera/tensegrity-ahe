@@ -22,7 +22,7 @@
 #define enc_A2 10
 
 #define strut_id 0  // 0,1,2 - change before upload
-#define debug 1 
+// #define debug 1 
 
 char ssid[] = "ahe";
 char password[] = "Morgantown";
@@ -62,8 +62,10 @@ void init_motors(){
 
 void set_motor(int motor,int dir,int speed){
   // set speed,direction for motor 0,1
-   sprintf(print,"set_mtr:%d,%d,%d",motor,dir,speed);
-  Serial.println(print);
+  #ifdef debug
+    sprintf(print,"set_mtr:%d,%d,%d",motor,dir,speed);
+    Serial.println(print);
+  #endif
   
   if (motor){
     //m1 cmds
@@ -223,8 +225,8 @@ int udp_listen(){
 
 void send_udp(){
     udp.beginPacket("192.168.1.255", 5000);
-    sprintf(packet,"%04d,%04d:",enc_A_cnt,enc_B_cnt);
-    udp.write((uint8_t*)packet, 10);
+    // sprintf(packet,"%04d,%04d:",enc_A_cnt,enc_B_cnt);
+    udp.write((uint8_t*)print, 22);
     udp.endPacket();
 }
 
@@ -315,21 +317,19 @@ void internal_PID_loop(int m0_len,int m1_len){
       Input_a = enc_A_cnt*1.0;
       mypid_a.Compute();
 
-
-      Serial.println(Output_a);
+      // sprintf(print,"%04d,%06.2f,%06.2f,000",enc_A_cnt,mtr_a_pending_cnt,Output_a);
+      // // // Serial.println(print);
+      // send_udp();
 
       
       set_motor(0,mtr_a_pending_cnt>0,map(int(Output_a),int(0),int(255),int(15),int(255)));
-      delay(2);
+      delay(4);
   }
   stop_motor(0);
 
   // tellling you its perfectly there, this accumilates error
   m0_current = m0_len;
 
-
-  sprintf(print,"PID exit: enca %.2f",enc_A_cnt);
-  Serial.println(print);
 }
 
 long enc_a_old,enc_b_old=0;
