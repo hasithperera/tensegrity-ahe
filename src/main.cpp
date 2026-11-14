@@ -165,43 +165,6 @@ WiFiUDP udp;
 char packet[12];
 
 
-void wifi_firmware_check(){
-  // Print a welcome message
-  Serial.println("WiFiNINA firmware check.");
-  Serial.println();
-
-  // check for the WiFi module:
-  if (WiFi.status() == WL_NO_MODULE) {
-    Serial.println("Communication with WiFi module failed!");
-    // don't continue
-    while (true);
-  }
-
-  // Print firmware version on the module
-  String fv = WiFi.firmwareVersion();
-  String latestFv;
-  Serial.print("Firmware version installed: ");
-  Serial.println(fv);
-
-  latestFv = WIFI_FIRMWARE_LATEST_VERSION;
-
-  // Print required firmware version
-  Serial.print("Latest firmware version available : ");
-  Serial.println(latestFv);
-
-  // Check if the latest version is installed
-  Serial.println();
-  if (fv >= latestFv) {
-    Serial.println("Check result: PASSED");
-  } else {
-    Serial.println("Check result: NOT PASSED");
-    Serial.println(" - The firmware version on the module does not match the");
-    Serial.println("   version required by the library, you may experience");
-    Serial.println("   issues or failures.");
-  }
-}
-
-
 int init_wifi(){
   Serial.print("Connecting to WiFi");
   WiFi.begin(ssid);
@@ -235,9 +198,6 @@ void send_udp(){
 }
 
 void setup() {
-  // put your setup code here, to run once:
-  // int result = myFunction(2, 3);
-  // attachInterrupt(1,isr,RISING);  // https://docs.arduino.cc/language-reference/en/functions/external-interrupts/attachInterrupt/
 
   m0_current = 75;
 
@@ -268,77 +228,12 @@ void extract_udp_cmd(){
   mtr_a_len = int(packet[strut_id*2]);
   mtr_b_len = int(packet[strut_id*2+1]);
 
-  #ifdef debug
-    Serial.print("mtr cmd:");
-    Serial.print(mtr_a_len);
-    Serial.print(',');
-    Serial.println(mtr_b_len);
-  #endif
-
-  // if (mtr_a_len==65){
-  //   stop_motor(0);
-  //   print_enc_a();
-  //   reset_enc_cnt();
-  // }
-    
-  
-  // if(mtr_a_len > 65){
-  //   analogWrite(PWMA,255);
-  //   motor_fwd();
-  // }
-
-  // if(mtr_a_len < 65){
-  //   analogWrite(PWMA,255);
-  //   motor_rev();
-  // }
-
   internal_PID_loop(mtr_a_len,mtr_b_len);
     
 }
 
 
-#ifdef v1
-void internal_PID_loop(int m0_len,int m1_len){
 
-  // external values are setpoints
-  
-
-
-  // calculate counts for motors and direction
-  float mtr_a_pending_cnt = (m0_len - m0_current) * 23.33;
-  sprintf(print,"PID in:%d,%d\nm0c:%d\n m_pnd_cnt:%.2f\n",m0_len,m1_len,m0_current,mtr_a_pending_cnt);
-  Serial.println(print);
-
-  reset_enc_cnt();
-  // fwd if mtr_a_pending_cnt > 0
-  // rev if mtr_a_pending_cnt < 0
-
-  Setpoint_a = abs(mtr_a_pending_cnt);
-  Input_a = enc_A_cnt;
-
-  
-  while(abs(abs(mtr_a_pending_cnt) - enc_A_cnt)>5){
-      Input_a = enc_A_cnt*1.0;
-      mypid_a.Compute();
-
-      // sprintf(print,"%04d,%06.2f,%06.2f,000",enc_A_cnt,mtr_a_pending_cnt,Output_a);
-      // // // Serial.println(print);
-      // send_udp();
-
-      
-      set_motor(0,mtr_a_pending_cnt>0,map(int(Output_a),int(0),int(255),int(15),int(255)));
-      delay(4);
-  }
-  stop_motor(0);
-
-  // tellling you its perfectly there, this accumilates error
-  m0_current = m0_len;
-
-}
-#endif
-
-
-#ifndef v1
 void internal_PID_loop(int m0_len,int m1_len){
 
   // calculate counts for motors and direction
@@ -372,35 +267,14 @@ void internal_PID_loop(int m0_len,int m1_len){
 
 
 }
-#endif
+
 
 
 
 long enc_a_old,enc_b_old=0;
 
 void loop() {
-  // put your main code here, to run repeatedly:
-
-  //test_speeds(0);
   
-  // for(int i=0;i<20;i++){
-  //   Serial.print('.');
-  //   send_udp();
-  //   delay(200);
-  // }
-  //Serial.print('.');
-
-  // if (enc_a_old != enc_A_cnt){
-  //   send_udp();
-  //   enc_a_old = enc_A_cnt;
-  // }
-
-
-  // // hardcoded motor limit
-  // if(enc_A_cnt > 7000){
-  //   stop_motor(0);
-  //   reset_enc_cnt();
-  // }
   
  int packetSize = udp.parsePacket();
   if (packetSize) {
@@ -415,8 +289,7 @@ void loop() {
 
 }
 
-
-#ifndef v1
+ 
 void isr_a(){
   if(digitalRead(enc_A2))
     enc_A_cnt++;
@@ -424,10 +297,4 @@ void isr_a(){
     enc_A_cnt--;
 
 }
-#endif
 
-#ifdef v1
-  void isr_a(){
-      enc_A_cnt++;
-  }
-#endif
