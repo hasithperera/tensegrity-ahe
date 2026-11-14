@@ -32,7 +32,7 @@ const unsigned int UDP_PORT = 52311;
 
 //encorder counts
 
-long enc_A_cnt = 0;
+long enc_A_cnt = 500;
 long enc_B_cnt = 0;
 
 int m0_current = 75;
@@ -42,7 +42,7 @@ int m1_current = 75;
 double Setpoint_a, Input_a, Output_a;
 
 //Specify the links and initial tuning parameters
-double Kp=.45,Ki=0, Kd=.02;
+double Kp=.8,Ki=0, Kd=.02;
 PID mypid_a(&Input_a, &Output_a, &Setpoint_a, Kp, Ki, Kd, DIRECT);
 
 void isr_a();
@@ -150,12 +150,16 @@ void init_encorders(){
   pinMode(enc_A1,INPUT);
   pinMode(enc_A2,INPUT);
 
-  reset_enc_cnt();
+  #ifdef v1
+    reset_enc_cnt();
+  #else
+    enc_A_cnt = 500;
+  #endif
 
   attachInterrupt(enc_A1,isr_a,RISING);
 }
 
-
+// #define v1 1
 WiFiUDP udp;
 
 char packet[12];
@@ -293,7 +297,7 @@ void extract_udp_cmd(){
 }
 
 
-
+#ifdef v1
 void internal_PID_loop(int m0_len,int m1_len){
 
   // external values are setpoints
@@ -331,6 +335,46 @@ void internal_PID_loop(int m0_len,int m1_len){
   m0_current = m0_len;
 
 }
+#endif
+
+
+#ifndef v1
+void internal_PID_loop(int m0_len,int m1_len){
+
+  // calculate counts for motors and direction
+  long mtr_a_cnt = int(m0_len * 23.33);
+
+  sprintf(print,"PID in: s:%d,c:%d",mtr_a_cnt,enc_A_cnt);
+  Serial.println(print);
+
+
+  Setpoint_a = 0;
+  Input_a = (mtr_a_cnt - enc_A_cnt)*1.0;
+
+  unsigned long pid_st = millis();
+  while(abs(mtr_a_cnt - enc_A_cnt)>10){
+      Input_a = abs(mtr_a_cnt - enc_A_cnt)*-1.0;
+
+      mypid_a.Compute();
+
+      // sprintf(print,"%04d,%04d",enc_A_cnt,mtr_a_cnt);
+      // Serial.println(print);
+      delay(3);
+      // send_udp();
+
+      set_motor(0,mtr_a_cnt>enc_A_cnt,map(int(abs(Output_a)),int(10),int(255),int(30),int(255)));
+      // delay(1);
+  }
+  stop_motor(0);
+  
+  Serial.print("run time:");
+  Serial.println((millis()-pid_st));
+
+
+}
+#endif
+
+
 
 long enc_a_old,enc_b_old=0;
 
@@ -372,8 +416,18 @@ void loop() {
 }
 
 
-
+#ifndef v1
 void isr_a(){
-  enc_A_cnt++;
+  if(digitalRead(enc_A2))
+    enc_A_cnt++;
+  else
+    enc_A_cnt--;
 
 }
+#endif
+
+#ifdef v1
+  void isr_a(){
+      enc_A_cnt++;
+  }
+#endif
